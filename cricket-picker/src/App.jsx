@@ -111,13 +111,13 @@ const playSound = (type) => {
             <button onClick={() => setView('toss')} className="group bg-zinc-900 border border-zinc-800 p-8 rounded-sm hover:border-zinc-400 transition-all text-left relative overflow-hidden">
               <span className="text-zinc-600 text-[10px] tracking-[0.3em] uppercase block mb-1 font-bold">Step 01</span>
               <h2 className="text-2xl font-black italic tracking-tight uppercase group-hover:text-white transition-colors">Coin Toss</h2>
-              <div className="absolute right-[-10px] bottom-[-10px] text-6xl opacity-5 group-hover:opacity-10 transition-opacity">🪙</div>
+              <div className="absolute -right-2.5 -bottom-2.5 text-6xl opacity-5 group-hover:opacity-10 transition-opacity">🪙</div>
             </button>
 
             <button onClick={() => setView('order')} className="group bg-zinc-900 border border-zinc-800 p-8 rounded-sm hover:border-zinc-400 transition-all text-left relative overflow-hidden">
               <span className="text-zinc-600 text-[10px] tracking-[0.3em] uppercase block mb-1 font-bold">Step 02</span>
               <h2 className="text-2xl font-black italic tracking-tight uppercase group-hover:text-white transition-colors">Order Selection</h2>
-              <div className="absolute right-[-10px] bottom-[-10px] text-6xl opacity-5 group-hover:opacity-10 transition-opacity">🏏</div>
+              <div className="absolute -right-2.5 -bottom-2.5 text-6xl opacity-5 group-hover:opacity-10 transition-opacity">🏏</div>
             </button>
           </div>
         )}
