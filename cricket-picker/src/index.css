@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/* Chrome, Safari, Edge, Opera */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+
+@layer utilities {
+  .perspective-1000 { perspective: 1000px; }
+  .preserve-3d { transform-style: preserve-3d; }
+  .backface-hidden { backface-visibility: hidden; }
+  .rotate-y-180 { transform: rotateY(180deg); }
+  
+  @keyframes coin-flip {
+    0% { transform: rotateY(0); }
+    100% { transform: rotateY(1800deg); } /* 5 full rotations */
+  }
+  .animate-coin {
+    animation: coin-flip 3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+}
