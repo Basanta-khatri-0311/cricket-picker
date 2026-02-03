@@ -1,177 +1,214 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { registerSW } from 'virtual:pwa-register';
+
+registerSW({ onNeedRefresh() { window.location.reload(); } });
 
 function App() {
-  const [view, setView] = useState('home'); 
+  const [view, setView] = useState('home');
   const [numPlayers, setNumPlayers] = useState("");
+  const [playersPerTeam, setPlayersPerTeam] = useState("2");
   const [cards, setCards] = useState([]);
   const [tossResult, setTossResult] = useState(null);
   const [isFlipping, setIsFlipping] = useState(false);
 
-  // --- AUDIO SYNTHESIZER ---
-const playSound = (type) => {
-  // Create context only after user gesture
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  const ctx = new AudioContext();
-  
-  // Safari fix: Resume context if it's suspended
-  if (ctx.state === 'suspended') {
-    ctx.resume();
-  }
-
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-
-  if (type === 'flip') {
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(600, ctx.currentTime);
-    gain.gain.setValueAtTime(0.1, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.1);
-  } else if (type === 'success') {
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(500, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(1000, ctx.currentTime + 0.2);
-    gain.gain.setValueAtTime(0.05, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.3);
-  }
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-};
-
-  const triggerHaptic = () => {
-    if (navigator.vibrate) navigator.vibrate(50);
+  // --- AUDIO & HAPTIC ---
+  const playSound = (type) => {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    const ctx = new AudioContext();
+    if (ctx.state === 'suspended') ctx.resume();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type === 'flip' ? 'sine' : 'square';
+    osc.frequency.setValueAtTime(type === 'flip' ? 600 : 800, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.2);
   };
 
-  // --- LINEUP LOGIC ---
+  const triggerHaptic = () => { if (navigator.vibrate) navigator.vibrate(50); };
+
   const setupOrder = () => {
     const count = parseInt(numPlayers);
     if (isNaN(count) || count < 1) return;
-    let newCards = Array.from({ length: count }, (_, i) => ({
+    let pool = Array.from({ length: count }, (_, i) => ({
       id: i, value: i + 1, isRevealed: false
     }));
-    for (let i = newCards.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newCards[i], newCards[j]] = [newCards[j], newCards[i]];
+    pool.sort(() => Math.random() - 0.5);
+    setCards(pool);
+    setView('cards');
+  };
+
+  const setupSquads = () => {
+    const total = parseInt(numPlayers);
+    const perTeam = parseInt(playersPerTeam);
+    if (isNaN(total) || total < 1) return;
+    let pool = [];
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+    for (let i = 0; i < total; i++) {
+      const teamIndex = Math.floor(i / perTeam);
+      pool.push(alphabet[teamIndex] || teamIndex + 1);
     }
-    setCards(newCards);
+    pool.sort(() => Math.random() - 0.5);
+    setCards(pool.map((val, index) => ({ id: index, value: val, isRevealed: false })));
     setView('cards');
   };
 
   const handleReveal = (id) => {
     playSound('flip');
     triggerHaptic();
-    
-    const updatedCards = cards.map(card => 
-      card.id === id ? { ...card, isRevealed: true } : card
-    );
+    const updatedCards = cards.map(c => c.id === id ? { ...c, isRevealed: true } : c);
     setCards(updatedCards);
-
-    const hiddenCards = updatedCards.filter(c => !c.isRevealed);
-    if (hiddenCards.length === 1) {
-      setTimeout(() => {
-        playSound('success');
-        triggerHaptic();
-        setCards(prev => prev.map(c => ({ ...c, isRevealed: true })));
-      }, 600);
+    if (updatedCards.filter(c => !c.isRevealed).length === 1) {
+      setTimeout(() => { playSound('success'); setCards(prev => prev.map(c => ({ ...c, isRevealed: true }))); }, 600);
     }
   };
 
-  // --- TOSS LOGIC ---
   const handleToss = () => {
-    setIsFlipping(true);
-    setTossResult(null);
-    playSound('flip');
-    
+    setIsFlipping(true); setTossResult(null); playSound('flip');
     setTimeout(() => {
       setTossResult(Math.random() < 0.5 ? 'HEADS' : 'TAILS');
-      setIsFlipping(false);
-      playSound('success');
-      triggerHaptic();
+      setIsFlipping(false); playSound('success'); triggerHaptic();
     }, 3000);
   };
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 font-sans antialiased selection:bg-zinc-500 overflow-x-hidden">
-      <div className="max-w-md mx-auto px-6 py-12 flex flex-col min-h-screen">
-        
-        {/* HEADER */}
+    <div className="h-screen bg-[#09090b] text-zinc-100 font-sans antialiased selection:bg-white selection:text-black overflow-x-hidden p-6 relative">
+
+      {/* Dynamic Background Glows */}
+      <div className="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] bg-zinc-800/20 blur-[120px] rounded-full pointer-events-none" />
+      <div className="fixed bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-white/[0.02] blur-[120px] rounded-full pointer-events-none" />
+
+      <div className="max-w-md mx-auto flex flex-col min-h-screen relative z-10">
+
+        {/* HEADER: Added a subtle glow line */}
         <header className="mb-12 text-center shrink-0">
-          <h1 className="text-xl font-extralight tracking-[0.4em] uppercase text-zinc-500">
-            Order <span className="font-bold text-white tracking-widest">Protocol</span>
+          <h1 className="text-xs font-bold tracking-[0.6em] uppercase text-zinc-600 mb-1">
+            12th MEN <span className="text-white">Protocol</span>
           </h1>
-          <div className="h-[1px] w-8 bg-zinc-800 mx-auto mt-4"></div>
+          <div className="h-[2px] w-6 bg-gradient-to-r from-transparent via-zinc-500 to-transparent mx-auto"></div>
         </header>
 
-        {/* HOME MENU */}
+        {/* HOME MENU: Added Glass Effect & Hover Lift */}
         {view === 'home' && (
-          <div className="flex-1 flex flex-col justify-center gap-4 animate-in fade-in zoom-in-95 duration-500">
-            <button onClick={() => setView('toss')} className="group bg-zinc-900 border border-zinc-800 p-8 rounded-sm hover:border-zinc-400 transition-all text-left relative overflow-hidden">
-              <span className="text-zinc-600 text-[10px] tracking-[0.3em] uppercase block mb-1 font-bold">Step 01</span>
-              <h2 className="text-2xl font-black italic tracking-tight uppercase group-hover:text-white transition-colors">Coin Toss</h2>
-              <div className="absolute -right-2.5 -bottom-2.5 text-6xl opacity-5 group-hover:opacity-10 transition-opacity">🪙</div>
-            </button>
-
-            <button onClick={() => setView('order')} className="group bg-zinc-900 border border-zinc-800 p-8 rounded-sm hover:border-zinc-400 transition-all text-left relative overflow-hidden">
-              <span className="text-zinc-600 text-[10px] tracking-[0.3em] uppercase block mb-1 font-bold">Step 02</span>
-              <h2 className="text-2xl font-black italic tracking-tight uppercase group-hover:text-white transition-colors">Order Selection</h2>
-              <div className="absolute -right-2.5 -bottom-2.5 text-6xl opacity-5 group-hover:opacity-10 transition-opacity">🏏</div>
-            </button>
+          <div className="flex-1 flex flex-col justify-center gap-6 animate-in fade-in zoom-in-95 duration-700">
+            {[
+              { id: 'toss', num: '01', title: 'Coin Toss', icon: '🪙' },
+              { id: 'order-setup', num: '02', title: 'Order Selection', icon: '🏏' },
+              { id: 'squad-setup', num: '03', title: 'Squad Match', icon: '🤝' }
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setView(item.id)}
+                className="group relative bg-zinc-900/40 backdrop-blur-md border border-white/5 p-8 rounded-2xl text-left transition-all hover:bg-zinc-800/60 hover:border-white/20 active:scale-[0.97]"
+              >
+                <span className="text-zinc-600 text-[10px] font-mono tracking-widest block mb-2">PROTOCOL {item.num}</span>
+                <h2 className="text-3xl font-black italic uppercase tracking-tighter group-hover:translate-x-1 transition-transform">{item.title}</h2>
+                <div className="absolute right-6 bottom-6 text-4xl opacity-[0.03] group-hover:opacity-10 transition-opacity grayscale">{item.icon}</div>
+              </button>
+            ))}
           </div>
         )}
 
-        {/* COIN TOSS VIEW */}
-        {view === 'toss' && (
-          <div className="flex-1 flex flex-col items-center justify-center animate-in slide-in-from-bottom-4 duration-500 text-center">
-            <div className="perspective-1000 mb-12">
-              <div className={`w-40 h-40 rounded-full bg-zinc-100 border-4 border-zinc-300 flex items-center justify-center text-zinc-900 text-6xl font-black shadow-[0_0_50px_rgba(255,255,255,0.1)] transition-transform duration-700 preserve-3d ${isFlipping ? 'animate-coin' : ''}`}>
-                 {tossResult ? (tossResult === 'HEADS' ? 'H' : 'T') : '🪙'}
-              </div>
-            </div>
-            
-            <h2 className="text-4xl font-black italic mb-12 tracking-tighter text-white uppercase h-10">
-              {isFlipping ? "Flipping..." : tossResult}
-            </h2>
-            
-            <button onClick={handleToss} disabled={isFlipping} className="w-full bg-white text-black font-black py-5 rounded-sm uppercase tracking-[0.2em] text-sm active:scale-95 disabled:opacity-30 transition-all shadow-lg">
-              Perform Toss
-            </button>
-            <button onClick={() => {setView('home'); setTossResult(null);}} className="mt-8 text-zinc-600 text-[10px] uppercase tracking-widest underline underline-offset-8">Exit</button>
-          </div>
-        )}
-
-        {/* ORDER SETUP VIEW */}
-        {view === 'order' && (
-          <div className="flex-1 flex flex-col justify-center space-y-12 animate-in slide-in-from-bottom-4 duration-500">
+        {/* SETUP VIEWS: Added "Liquid" Input Styling */}
+        {(view === 'order-setup' || view === 'squad-setup') && (
+          <div className="flex-1 flex flex-col justify-center space-y-12 animate-in slide-in-from-bottom-8 duration-500">
             <div className="text-center">
-              <span className="text-[10px] uppercase tracking-[0.4em] text-zinc-600 mb-6 block font-bold">Squad Size</span>
-              <input type="number" placeholder="0" className="w-full bg-transparent text-center focus:outline-none text-9xl font-black text-white placeholder-zinc-900" value={numPlayers} onChange={(e) => setNumPlayers(e.target.value)} autoFocus />
+              <h2 className="text-sm font-bold uppercase tracking-[0.3em] text-zinc-500 mb-12 italic">
+                {view === 'order-setup' ? "Batting Order" : "Team Matching"}
+              </h2>
+              <div className="relative inline-block">
+                <input
+                  type="number"
+                  className="w-full bg-transparent text-center focus:outline-none text-[10rem] leading-none font-black text-white placeholder-zinc-900 tracking-tighter"
+                  value={numPlayers}
+                  onChange={(e) => setNumPlayers(e.target.value)}
+                  autoFocus
+                  placeholder="00"
+                />
+                <div className="absolute -bottom-4 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+              </div>
+              <p className="mt-8 text-[10px] text-zinc-600 font-bold uppercase tracking-widest">Target Squad Size</p>
             </div>
-            <button onClick={setupOrder} className="w-full bg-white text-black font-black py-5 rounded-sm uppercase tracking-[0.2em] text-sm active:scale-95 transition-all">Initialize Deck</button>
-            <button onClick={() => setView('home')} className="mt-4 text-zinc-600 text-[10px] uppercase tracking-widest text-center underline underline-offset-8">Cancel</button>
+
+            {view === 'squad-setup' && (
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] uppercase tracking-widest text-zinc-600 mb-6 font-bold">Players Per Team</span>
+
+                {/* Grid layout for 2-11 selection */}
+                <div className="grid grid-cols-5 gap-3 w-full max-w-[320px] mb-8">
+                  {Array.from({ length: 10 }, (_, i) => (i + 2).toString()).map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setPlayersPerTeam(n)}
+                      className={`h-12 rounded-xl border transition-all font-mono text-sm flex items-center justify-center
+            ${playersPerTeam === n
+                          ? 'bg-white text-black border-white shadow-[0_0_20px_rgba(255,255,255,0.2)]'
+                          : 'border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300 bg-zinc-900/20'
+                        }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="w-12 h-[1px] bg-zinc-800 mb-2"></div>
+              </div>
+            )}
+
+            <div className="space-y-4 pt-8">
+              <button
+                onClick={view === 'order-setup' ? setupOrder : setupSquads}
+                className="w-full bg-white text-black font-black py-6 rounded-2xl uppercase tracking-[0.2em] text-xs shadow-[0_20px_40px_rgba(0,0,0,0.4)] active:scale-95 transition-all"
+              >
+                Begin Protocol
+              </button>
+              <button onClick={() => setView('home')} className="w-full text-zinc-600 text-[10px] uppercase tracking-widest text-center py-2 hover:text-white transition-colors">Cancel</button>
+            </div>
           </div>
         )}
 
-        {/* CARDS DISPLAY VIEW */}
+        {/* CARDS DISPLAY: Dark Grid with Reveal Animations */}
         {view === 'cards' && (
-          <div className="flex-1 animate-in fade-in duration-700 pb-10">
-            <div className="grid grid-cols-3 gap-3">
+          <div className="flex-1 animate-in fade-in duration-1000">
+            <div className="grid grid-cols-3 gap-4">
               {cards.map((card) => (
-                <div key={card.id} onClick={() => !card.isRevealed && handleReveal(card.id)} className="perspective-1000 h-32 cursor-pointer">
+                <div key={card.id} onClick={() => !card.isRevealed && handleReveal(card.id)} className="perspective-1000 h-36">
                   <div className={`relative w-full h-full transition-all duration-700 preserve-3d ${card.isRevealed ? 'rotate-y-180' : ''}`}>
-                    <div className="absolute inset-0 backface-hidden bg-zinc-900 border border-zinc-800 rounded-sm flex flex-col items-center justify-center">
-                       <span className="text-3xl grayscale opacity-30">🏏</span>
+                    {/* Front: Dark Tech Side */}
+                    <div className="absolute inset-0 backface-hidden bg-zinc-900/80 backdrop-blur-sm border border-white/5 rounded-2xl flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center">
+                        <div className="w-1 h-1 bg-white/20 rounded-full animate-pulse"></div>
+                      </div>
                     </div>
-                    <div className="absolute inset-0 backface-hidden rotate-y-180 bg-white border border-white rounded-sm flex items-center justify-center">
+                    {/* Back: High Contrast Info */}
+                    <div className="absolute inset-0 backface-hidden rotate-y-180 bg-white border border-white rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.1)]">
                       <span className="text-zinc-950 text-5xl font-black italic tracking-tighter">{card.value}</span>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-            <button onClick={() => setView('order')} className="mt-16 w-full text-zinc-600 text-[10px] uppercase tracking-[0.4em] text-center border border-zinc-900 py-4 hover:border-zinc-700 transition-all">← New Session</button>
+            <button onClick={() => setView('home')} className="mt-20 w-full text-zinc-600 text-[10px] uppercase tracking-[0.5em] text-center border border-white/5 py-5 rounded-2xl hover:bg-white/5 transition-all">
+              End Session
+            </button>
+          </div>
+        )}
+
+        {/* COIN TOSS: Ultra Minimalist */}
+        {view === 'toss' && (
+          <div className="flex-1 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-500">
+            <div className="relative mb-20">
+              <div className={`w-56 h-56 rounded-full bg-gradient-to-tr from-zinc-200 to-white flex items-center justify-center text-zinc-950 text-8xl font-black shadow-[0_30px_60px_rgba(0,0,0,0.5),0_0_100px_rgba(255,255,255,0.1)] transition-transform duration-700 preserve-3d ${isFlipping ? 'animate-coin' : ''}`}>
+                {tossResult ? (tossResult === 'HEADS' ? 'H' : 'T') : '•'}
+              </div>
+            </div>
+            <h2 className="text-5xl font-black italic mb-20 uppercase tracking-tighter h-12 text-white">
+              {isFlipping ? "shuffling..." : tossResult}
+            </h2>
+            <button onClick={handleToss} disabled={isFlipping} className="w-full bg-white text-black font-black py-6 rounded-2xl uppercase tracking-[0.2em] text-xs active:scale-95 disabled:opacity-30 transition-all">
+              Commit Flip
+            </button>
+            <button onClick={() => setView('home')} className="mt-8 text-zinc-600 text-[10px] uppercase tracking-widest">Return</button>
           </div>
         )}
       </div>
