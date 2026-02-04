@@ -80,7 +80,7 @@ function App() {
 
       <div className="max-w-md mx-auto flex flex-col min-h-screen relative z-10">
 
-        {/* HEADER: Added a subtle glow line */}
+        {/* HEADER */}
         <header className="mb-12 text-center shrink-0">
           <h1 className="text-xs font-bold tracking-[0.6em] uppercase text-zinc-600 mb-1">
             12th MEN <span className="text-white">Protocol</span>
@@ -88,7 +88,7 @@ function App() {
           <div className="h-[2px] w-6 bg-gradient-to-r from-transparent via-zinc-500 to-transparent mx-auto"></div>
         </header>
 
-        {/* HOME MENU: Added Glass Effect & Hover Lift */}
+        {/* HOME MENU */}
         {view === 'home' && (
           <div className="flex-1 flex flex-col justify-center gap-6 animate-in fade-in zoom-in-95 duration-700">
             {[
@@ -109,7 +109,7 @@ function App() {
           </div>
         )}
 
-        {/* SETUP VIEWS: Added "Liquid" Input Styling */}
+        {/* SETUP VIEWS */}
         {(view === 'order-setup' || view === 'squad-setup') && (
           <div className="flex-1 flex flex-col justify-center space-y-12 animate-in slide-in-from-bottom-8 duration-500">
             <div className="text-center">
@@ -133,8 +133,6 @@ function App() {
             {view === 'squad-setup' && (
               <div className="flex flex-col items-center">
                 <span className="text-[10px] uppercase tracking-widest text-zinc-600 mb-6 font-bold">Players Per Team</span>
-
-                {/* Grid layout for 2-11 selection */}
                 <div className="grid grid-cols-5 gap-3 w-full max-w-[320px] mb-8">
                   {Array.from({ length: 10 }, (_, i) => (i + 2).toString()).map(n => (
                     <button
@@ -150,7 +148,6 @@ function App() {
                     </button>
                   ))}
                 </div>
-
                 <div className="w-12 h-[1px] bg-zinc-800 mb-2"></div>
               </div>
             )}
@@ -167,34 +164,58 @@ function App() {
           </div>
         )}
 
-        {/* CARDS DISPLAY: Dark Grid with Reveal Animations */}
+        {/* CARDS DISPLAY - MAXIMUM VISIBILITY */}
         {view === 'cards' && (
           <div className="flex-1 animate-in fade-in duration-1000">
             <div className="grid grid-cols-3 gap-4">
               {cards.map((card) => (
-                <div key={card.id} onClick={() => !card.isRevealed && handleReveal(card.id)} className="perspective-1000 h-36">
+                <div 
+                  key={card.id} 
+                  onClick={() => !card.isRevealed && handleReveal(card.id)} 
+                  className="perspective-1000 h-36 cursor-pointer"
+                >
                   <div className={`relative w-full h-full transition-all duration-700 preserve-3d ${card.isRevealed ? 'rotate-y-180' : ''}`}>
-                    {/* Front: Dark Tech Side */}
-                    <div className="absolute inset-0 backface-hidden bg-zinc-900/80 backdrop-blur-sm border border-white/5 rounded-2xl flex items-center justify-center">
-                      <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center">
-                        <div className="w-1 h-1 bg-white/20 rounded-full animate-pulse"></div>
+                    
+                    {/* Front: SUPER VISIBLE - Bright card with strong border */}
+                    <div className="absolute inset-0 backface-hidden bg-zinc-800 border-4 border-zinc-600 rounded-2xl flex items-center justify-center shadow-2xl hover:border-zinc-500 hover:bg-zinc-700 transition-all">
+                      <div className="flex flex-col items-center gap-2">
+                        {/* Large visible icon */}
+                        <div className="w-16 h-16 rounded-full border-4 border-zinc-500 flex items-center justify-center bg-zinc-700">
+                          <div className="w-4 h-4 bg-white rounded-full animate-pulse"></div>
+                        </div>
+                        {/* Clear label */}
+                        <span className="text-xs text-zinc-400 uppercase tracking-wider font-bold">TAP</span>
                       </div>
                     </div>
-                    {/* Back: High Contrast Info */}
-                    <div className="absolute inset-0 backface-hidden rotate-y-180 bg-white border border-white rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-                      <span className="text-zinc-950 text-5xl font-black italic tracking-tighter">{card.value}</span>
+                    
+                    {/* Back: Revealed card - bright white */}
+                    <div className="absolute inset-0 backface-hidden rotate-y-180 bg-white border-4 border-white rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(255,255,255,0.3)]">
+                      <span className="text-black text-6xl font-black italic tracking-tighter">{card.value}</span>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-            <button onClick={() => setView('home')} className="mt-20 w-full text-zinc-600 text-[10px] uppercase tracking-[0.5em] text-center border border-white/5 py-5 rounded-2xl hover:bg-white/5 transition-all">
-              End Session
-            </button>
+            
+            {/* Action Buttons */}
+            <div className="mt-12 space-y-3">
+              <button 
+                onClick={() => setCards(prev => prev.map(c => ({ ...c, isRevealed: true })))}
+                className="w-full bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-bold py-5 rounded-xl border-2 border-zinc-600 transition-all shadow-xl"
+              >
+                REVEAL ALL CARDS
+              </button>
+              <button 
+                onClick={() => setView('home')} 
+                className="w-full text-zinc-500 hover:text-white text-xs uppercase tracking-[0.4em] text-center border-2 border-zinc-800 hover:border-zinc-700 py-4 rounded-xl transition-all"
+              >
+                End Session
+              </button>
+            </div>
           </div>
         )}
 
-        {/* COIN TOSS: Ultra Minimalist */}
+        {/* COIN TOSS */}
         {view === 'toss' && (
           <div className="flex-1 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-500">
             <div className="relative mb-20">
@@ -212,6 +233,31 @@ function App() {
           </div>
         )}
       </div>
+
+      {/* Custom styles for 3D flip */}
+      <style>{`
+        .perspective-1000 {
+          perspective: 1000px;
+        }
+        .preserve-3d {
+          transform-style: preserve-3d;
+        }
+        .backface-hidden {
+          backface-visibility: hidden;
+        }
+        .rotate-y-180 {
+          transform: rotateY(180deg);
+        }
+        @keyframes coin {
+          0%, 100% { transform: rotateX(0deg) rotateY(0deg); }
+          25% { transform: rotateX(180deg) rotateY(180deg); }
+          50% { transform: rotateX(360deg) rotateY(360deg); }
+          75% { transform: rotateX(540deg) rotateY(540deg); }
+        }
+        .animate-coin {
+          animation: coin 3s ease-in-out;
+        }
+      `}</style>
     </div>
   );
 }
